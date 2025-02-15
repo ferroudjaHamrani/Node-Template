@@ -3,27 +3,21 @@ const mongoose = require("mongoose");
 const config = require("config");
 
 module.exports = async function (logger) {
-  const db = config.get("db");
+  const dbURI = config.get("db"); 
 
   let loaded = false;
 
   while (!loaded) {
     try {
       await mongoose
-        .connect(db, {
-          useNewUrlParser: true,
-          useUnifiedTopology: true,
-          useCreateIndex: true,
-          useFindAndModify: false,
-          dbName: "ghileslagha",
-        })
+        .connect(dbURI)
         .then(() => {
           loaded = true;
-          logger.info(`Connected to MongoDB`);
-          return;
+          logger.info(`✅ Connecté à MongoDB`);
         });
     } catch (error) {
-      logger.info(`Error loading MongoDB Retrying ...`);
+      logger.error(`❌ Erreur de connexion à MongoDB :`, error);
+      logger.info(`🔄 Retente la connexion...`);
     }
   }
 };

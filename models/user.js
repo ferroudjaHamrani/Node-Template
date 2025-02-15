@@ -4,15 +4,14 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const config = require("config");
 
-const schema = new mongoose.Schema({
-  name: {
+const userSchema = new mongoose.Schema({
+  nom: {
     type: String,
     required: true,
   },
-  username: {
+  prenom: {
     type: String,
     required: true,
-    unique: true,
   },
   email: {
     type: String,
@@ -21,56 +20,53 @@ const schema = new mongoose.Schema({
   },
   password: {
     type: String,
-    select: false,
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now(),
+    required: true,
+    select: false, // Empêche l'affichage par défaut du password
   },
   createdAt: {
     type: Date,
-    default: Date.now(),
+    default: Date.now,
   },
 });
 
-schema.pre("save", function () {
-  this.updatedAt = Date.now();
+// 🔹 Hash du password avant l'enregistrement
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
-schema.methods.hashPassword = async function (password) {
-  const salt = await bcrypt.genSalt(10);
-  let pass = await bcrypt.hash(password, salt);
-  this.password = pass;
-};
-
-schema.methods.generateAuthToken = async function () {
-  const token = jwt.sign(
+// 🔹 Génération du token JWT
+userSchema.methods.generateAuthToken = function () {
+  return jwt.sign(
     {
       _id: this._id,
-      name: this.name,
+      nom: this.nom,
+      prenom: this.prenom,
       email: this.email,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt,
     },
-    config.get("jwtPrivateKey")
+    config.get("jwtPrivateKey"),
+    { expiresIn: "7d" }
   );
-  return token;
 };
 
-const Handle = mongoose.model("User", schema);
+const User = mongoose.model("User", userSchema);
 
-function validate(post) {
+
+function validateUser(user) {
   const schema = Joi.object({
-    name: Joi.string().max(250).required(),
-
+    nom: Joi.string().max(250).required(),
+    prenom: Joi.string().max(250).required(),
     email: Joi.string().email().max(250).required(),
-    password: Joi.string().max(300).required(),
+    password: Joi.string().min(6).max(300).required(),
+    confirmPassword: Joi.string().valid(Joi.ref("password")).required().messages({
+      "any.only": "Les mots de passe ne correspondent pas.",
+    }),
   });
 
-  return schema.validate(post);
+  return schema.validate(user);
 }
 
-exports.User = {
-  Handle,
-  validate,
-};
+module.exports = { User, validateUser };

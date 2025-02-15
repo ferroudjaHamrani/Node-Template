@@ -1,30 +1,36 @@
 const { User } = require("../../models/user");
-
 const bcrypt = require("bcrypt");
 
 const login = async (req, res) => {
-  const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-  let emailVerified = email.replace(" ", "");
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: "Email et mot de passe sont requis." });
+    }
 
-  const result = await User.Handle.findOne({ email: emailVerified }).select(
-    "password"
-  );
-  if (!result)
-    return res.status(404).send({
-      success: false,
-      error: 101,
-      message: "Invalid email or password.",
-    });
+    let emailVerified = email.trim(); // Supprime les espaces
 
-  if (!password) return res.status(400).send("Invalid email or password.");
+    // Utiliser `User.findOne`, pas `User.Handle.findOne`
+    const user = await User.findOne({ email: emailVerified }).select("password");
 
-  const validPassword = await bcrypt.compare(password, result.password);
-  if (!validPassword) return res.status(400).send("Invalid email or password.");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Email ou mot de passe incorrect." });
+    }
 
-  let token = await result.generateAuthToken();
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(400).json({ success: false, message: "Email ou mot de passe incorrect." });
+    }
 
-  res.send({ success: true, token });
+    let token = await user.generateAuthToken();
+
+    res.json({ success: true, token });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Erreur serveur" });
+  }
 };
 
 module.exports = login;

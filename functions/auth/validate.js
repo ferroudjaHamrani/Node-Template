@@ -1,27 +1,24 @@
-const { User } = require("../../models/user");
-const config = require("config");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
+const config = require("config");
+const { User } = require("../../models/user");
 
-const validate = async (req, res) => {
-  const token = req.header("Authorization");
+module.exports = async function (req, res, next) {
+  let token = req.header("Authorization");
+  if (!token) return res.status(401).send({ message: "Access denied. No token provided." });
 
-  if (!token) return res.status(403).send({ message: "No token provided" });
+  // Suppression du préfixe "Bearer " si présent
+  if (token.startsWith("Bearer ")) {
+    token = token.slice(7, token.length).trim();
+  }
 
   try {
     const decoded = jwt.verify(token, config.get("jwtPrivateKey"));
-    const result = await User.Handle.findById(decoded._id);
-    if (!result) return res.status(401).send("User does not exist");
-    res.send({
-      success: true,
-      token,
-      result,
-    });
-  } catch (error) {
-    return res
-      .status(403)
-      .send({ message: "Invalid token", error: error.message });
+    const user = await User.findById(decoded._id);
+    if (!user) return res.status(401).send({ message: "User does not exist" });
+
+    req.user = user;
+    next();
+  } catch (ex) {
+    res.status(400).send({ message: "Invalid token." });
   }
 };
-
-module.exports = validate;

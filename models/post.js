@@ -1,47 +1,43 @@
 const Joi = require("joi");
 const mongoose = require("mongoose");
 
-const schema = new mongoose.Schema({
-  title: {
+// 📌 Schéma Mongoose
+const postSchema = new mongoose.Schema({
+  lieu: {
     type: String,
     required: true,
   },
-  body: {
+  description: {
     type: String,
   },
-  hidden: {
-    type: Boolean,
+  group: {
+    type: String,
     default: false,
   },
-  likes: {
-    type: Number,
-    default: 0,
-  },
-  authorID: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  updatedAt: {
-    type: Date,
-    default: Date.now(),
+  photo: {
+    type: String, // 📌 Doit être une chaîne (URL de l’image), pas un nombre !
+    required: true,
   },
   createdAt: {
     type: Date,
-    default: Date.now(),
+    default: Date.now,
   },
 });
 
-const Handle = mongoose.model("Post", schema);
+// 📌 Modèle Mongoose
+const Post = mongoose.model("Post", postSchema);
 
-function validate(post) {
+// 📌 Fonction de validation avec Joi
+function validatePost(post) {
   const schema = Joi.object({
-    title: Joi.string().min(5).max(250).required(),
-    body: Joi.string().max(500).allow("", null),
-    likes: Joi.number().integer(),
-    authorID: Joi.string().max(250),
+    lieu: Joi.string().min(2).max(250).required(),
+    description: Joi.string().max(500).allow("", null),
+    group: Joi.string(),
+    photo: Joi.string().required(), 
   });
 
   return schema.validate(post);
 }
 
-exports.Post = {
-  Handle,
-  validate,
-};
+// 📌 Exportation correcte
+module.exports = { Post, validatePost };
